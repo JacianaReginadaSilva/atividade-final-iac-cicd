@@ -1,51 +1,51 @@
-nome : Deploy Infraestrutura AWS com Terraform
+name: Deploy Infraestrutura AWS com Terraform
 
-sobre :
-  empurrar :
-    branches : ["main", "master"]
-  workflow_dispatch :
+on:
+  push:
+    branches: ["main", "master", "principal"]
+  workflow_dispatch:
 
-ambiente :
-  AWS_REGION : us-east-1
-  AWS_ACCESS_KEY_ID : ${{ secrets.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY : ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  AWS_SESSION_TOKEN : ${{ secrets.AWS_SESSION_TOKEN }}
-  TF_VAR_db_password : ${{ secrets.DB_PASSWORD }}
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
 
-empregos :
-  terraform :
-    runs-on : ubuntu-latest
-    passos :
-      - nome : Código de checkout
-        utiliza : actions/checkout@v4
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
 
-      - nome : Configurar Terraform
-        utiliza : hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-      - nome : Baixar Terraform State anterior (se existir)
-        utiliza : actions/download-artifact@v4
-        continuar-em-erro : verdadeiro
-        com :
-          nome : artefato-tfstate
+      - name: Baixar Terraform State anterior (se existir)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: tfstate-artifact
 
-      - nome : Inicialização do Terraform
-        executar : terraform init
+      - name: Terraform Init
+        run: terraform init
 
-      - nome : Validação do Terraform
-        executar : terraform validate
+      - name: Terraform Validate
+        run: terraform validate
 
-      - nome : Plano Terraform
-        executar : terraform plan
+      - name: Terraform Plan
+        run: terraform plan
 
-      - nome : Aplicar Terraform
-        execute : terraform apply -auto-approve
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
 
-      - nome : Exibir saídas
-        executar : saída do terraform
+      - name: Exibir Outputs
+        run: terraform output
 
-      - nome : Enviar Terraform State como Artefato
-        utiliza : actions/upload-artifact@v4
-        com :
-          nome : artefato-tfstate
-          caminho : terraform.tfstate
-          se nenhum arquivo for encontrado : ignore
+      - name: Enviar Terraform State como Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate-artifact
+          path: terraform.tfstate
+          if-no-files-found: ignore
