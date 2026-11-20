@@ -1,18 +1,51 @@
-# Infraestrutura AWS com Terraform e GitHub Actions
+name: Deploy Infraestrutura AWS com Terraform
 
-Provisionamento automatizado de infraestrutura na AWS (`us-east-1`) utilizando Terraform e GitHub Actions, com gerenciamento de estado via *Artifacts* para o ambiente AWS Academy Sandbox.
+on:
+  push:
+    branches: ["main", "master", "principal"]
+  workflow_dispatch:
 
-## Arquitetura Provisionada
-- **Rede e Segurança:** VPC padrão e sub-redes da região `us-east-1`, com *Security Groups* restringindo o tráfego HTTP (porta 80) do ALB para a EC2 e o acesso MySQL (porta 3306) do RDS para a EC2.
-- **Computação (EC2):** Instância `t3.micro` com Amazon Linux 2023 e servidor web Apache (`httpd`) configurado via `user_data`.
-- **Balanceamento (ALB):** *Application Load Balancer* público na porta 80 encaminhando requisições para o *Target Group* da instância EC2.
-- **Banco de Dados (RDS):** Instância MySQL `db.t3.micro` (`db-atividade3-mysql`) com senha passada via variável (`DB_PASSWORD`).
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+  TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
 
-## Automação com GitHub Actions
-- O *workflow* em `.github/workflows/deploy.yml` executa `terraform init`, `terraform validate`, `terraform plan`, `terraform apply` e `terraform output`[cite: 16].
-- O arquivo `terraform.tfstate` é salvo e recuperado entre execuções usando `actions/upload-artifact` e `actions/download-artifact`[cite: 12].
-- Credenciais AWS (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`) e `DB_PASSWORD` são armazenadas como *Repository Secrets*.
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
 
-## Validação e Limpeza
-- A aplicação é acessada pela URL pública do Application Load Balancer na porta 80[cite: 14].
-- Após os testes e a gravação da demonstração, os recursos são removidos para manter o ambiente do laboratório limpo[cite: 12].
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Baixar Terraform State anterior (se existir)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: tfstate-artifact
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      - name: Exibir Outputs
+        run: terraform output
+
+      - name: Enviar Terraform State como Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate-artifact
+          path: terraform.tfstate
+          if-no-files-found: ignore
